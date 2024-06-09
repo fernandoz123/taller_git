@@ -1,0 +1,79 @@
+sudo apt-get update
+sudo apt-get install virtualbox-guest-additions-iso
+
+
+
+
+#!/usr/bin/env python
+
+import sys
+import csv
+
+def read_input(file):
+    for line in file:
+        yield line.strip().split(',')
+
+def main():
+    data = read_input(sys.stdin)
+    header = next(data)  # Saltar la fila de cabecera
+    for row in data:
+        try:
+            distancia = float(row[4])  # trip_distance
+            tarifa = float(row[10])  # fare_amount
+            if distancia > 0:
+                tarifa_promedio_por_milla = tarifa / distancia
+                print(f"{distancia:.1f}\t{tarifa_promedio_por_milla}")
+        except ValueError:
+            continue
+
+if __name__ == "__main__":
+    main()
+
+
+#!/usr/bin/env python
+
+import sys
+from collections import defaultdict
+from itertools import groupby
+from operator import itemgetter
+
+def read_mapper_output(file):
+    for line in file:
+        yield line.strip().split('\t')
+
+def agrupar_por_distancia(data):
+    sorted_data = sorted(data, key=itemgetter(0))
+    return {key: list(map(lambda x: float(x[1]), values)) for key, values in groupby(sorted_data, key=itemgetter(0))}
+
+def calcular_tarifa_promedio(fares):
+    return sum(fares) / len(fares)
+
+def main():
+    data = read_mapper_output(sys.stdin)
+    grouped_data = agrupar_por_distancia(data)
+    resultados = dict(map(lambda kv: (kv[0], calcular_tarifa_promedio(kv[1])), grouped_data.items()))
+    for distancia, avg_fare in sorted(resultados.items()):
+        print(f"{distancia}\t{avg_fare:.2f}")
+
+if __name__ == "__main__":
+    main()
+
+
+hdfs dfs -mkdir -p /user/hadoop/input
+hdfs dfs -put /local/path/to/yellow_tripdata_2021_01.csv /user/hadoop/input
+
+
+chmod +x mapper.py reducer.py
+
+
+hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar \
+    -input /user/hadoop/input/yellow_tripdata_2021_01.csv \
+    -output /user/hadoop/output \
+    -mapper mapper.py \
+    -reducer reducer.py \
+    -file mapper.py \
+    -file reducer.py
+
+
+hdfs dfs -cat /user/hadoop/output/part-00000
+
